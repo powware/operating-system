@@ -1,0 +1,14 @@
+Sources:
+- [Bootloader](https://wiki.osdev.org/Bootloader)
+- http://www.cs.cmu.edu/~410-s07/p4/p4-boot.pdf
+- https://wiki.osdev.org/A20_Line
+- https://wiki.osdev.org/GDT
+- https://wiki.osdev.org/Protected_mode
+- https://wiki.osdev.org/UEFI
+- https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
+- https://www.reddit.com/r/osdev/comments/nwhoyr/any_good_beginner_64_bit_bootloader_guides/
+- https://developer.amd.com/resources/developer-guides-manuals/
+- https://wiki.osdev.org/X86-64
+- https://wiki.osdev.org/POSIX-UEFI
+- https://wiki.osdev.org/GNU-EFI
+- https://wiki.osdev.org/UEFI_App_Bare_Bones
