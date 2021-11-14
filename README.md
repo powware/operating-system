@@ -1,8 +1,24 @@
+[Bootloader](https://wiki.osdev.org/Bootloader):
+  - [enable A20 Line](https://wiki.osdev.org/A20_Line):
+    - try int 15 Method
+    - try Keyboard Controller Method
+    - try Fast A20 Method
+  - [setup GDT](https://wiki.osdev.org/GDT_Tutorial) [(GDT)](https://wiki.osdev.org/GDT)
+  - disable interrupts, including [NMI](https://wiki.osdev.org/Non_Maskable_Interrupt)
+  - [enter Protected Mode](https://wiki.osdev.org/Protected_mode)
+  - enter Long Mode
+  - 
 Sources:
-- [Bootloader](https://wiki.osdev.org/Bootloader)
 - http://www.cs.cmu.edu/~410-s07/p4/p4-boot.pdf
+- https://wiki.osdev.org/Bootloader
+- https://wiki.osdev.org/Real_Mode
+- https://wiki.osdev.org/Segmentation
+- https://wiki.osdev.org/Task_State_Segment
+- https://wiki.osdev.org/Paging
 - https://wiki.osdev.org/A20_Line
 - https://wiki.osdev.org/GDT
+- https://wiki.osdev.org/GDT_Tutorial
+- https://wiki.osdev.org/Non_Maskable_Interrupt
 - https://wiki.osdev.org/Protected_mode
 - https://wiki.osdev.org/UEFI
 - https://uefi.org/sites/default/files/resources/UEFI_Spec_2_9_2021_03_18.pdf
