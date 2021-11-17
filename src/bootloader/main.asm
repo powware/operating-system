@@ -18,28 +18,23 @@ Start: ;DH and ES:DI should be preserved by the MBR for full Plug-and-Play suppo
 
     cld                     ;clear direction flag for string operations
 
-PrintBootDiskNumber:
-    mov si, boot_disk_number
+PrintBootDisk:
+    mov si, boot_disk
     call PrintString
     mov bl, dl
     call PrintByteAsHex
     call PrintNewline
 
 ResetDiskSystem:
-    xor al, al
+    xor ah, ah
     int 0x13
-    jnc ResetDiskSystem
-    cmp ah, 0
-    jne ResetDiskSystemError
+    jc ResetDiskSystemError
 
 CheckExtensionPresent:
-    mov bx, 0x55AA
     mov ah, 0x41
     int 0x13
 
     jc EDDError
-    cmp bx, [magic_number]
-    jne EDDError
     and cx, 0x04
     jz EDDError
 
@@ -49,9 +44,6 @@ HALT:
 
 ResetDiskSystemError:
     mov si, reset_disk_system_error
-    call PrintString
-    mov bl, ah
-    call PrintByteAsHex
     call PrintNewline
     jmp BootError
 
@@ -79,7 +71,6 @@ PrintString:
     jz .return
     int 0x10
     jmp .print_char
-
 .return:
     ret
 
@@ -116,11 +107,11 @@ PrintNewline:
     ret
 
 
-boot_disk_number db "Boot Disk Number: 0x", 0
-reset_disk_system_error db "Reset Disk System Error: 0x", 0
-edd_error db "Enhanced Disk Drive not supported", 0
-boot_error db "Boot Error", 0
+boot_disk db "Boot Disk: 0x", 0
+reset_disk_system_error db "Resetting Disk System failed.", 0
+edd_error db "Enhanced Disk Drive not supported.", 0
+boot_error db "Boot error.", 0
 ;guid db "pow's bootloader", 0
 
 times 510 - ($ - $$) db 0
-magic_number dw 0xAA55
+dw 0xAA55
