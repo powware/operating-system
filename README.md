@@ -11,6 +11,11 @@
   - enter Long Mode
 Sources:
 - http://www.cs.cmu.edu/~410-s07/p4/p4-boot.pdf
+- https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
+- https://en.wikipedia.org/wiki/GNU_GRUB
+- https://en.wikipedia.org/wiki/INT_13H#EDD
+- http://www.brokenthorn.com/Resources/OSDevIndex.html
+- https://en.wikipedia.org/wiki/Master_boot_record
 - https://wiki.osdev.org/Bootloader
 - https://wiki.osdev.org/Rolling_Your_Own_Bootloader
 - https://wiki.osdev.org/Real_Mode
@@ -35,3 +40,6 @@ Sources:
 - https://wiki.osdev.org/POSIX-UEFI
 - https://wiki.osdev.org/GNU-EFI
 - https://wiki.osdev.org/UEFI_App_Bare_Bones
+
+DataSheets:
+- https://stanislavs.org/helppc/idx_interrupt.html
