@@ -31,10 +31,13 @@ ResetDiskSystem:
     jc ResetDiskSystemError
 
 CheckExtensionPresent:
+    mov bx, 0x55AA
     mov ah, 0x41
     int 0x13
 
     jc EDDError
+    cmp bx, [magic_number]
+    jne EDDError
     and cx, 0x04
     jz EDDError
 
@@ -114,4 +117,4 @@ boot_error db "Boot error.", 0
 ;guid db "pow's bootloader", 0
 
 times 510 - ($ - $$) db 0
-dw 0xAA55
+magic_number dw 0xAA55
