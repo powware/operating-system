@@ -2,10 +2,8 @@
 [org 0x600]                 ; we use the relocated origin and only use labels after relocation
 
 
-    jmp 0x0000:0x7C00 + setup_offset      ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
-
-setup_offset equ $ - $$
-Setup:
+    jmp 0x0000:0x7C00 + setup      ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
+setup equ $ - $$
 
     xor ax, ax
     mov ds, ax              ; clear ds
@@ -24,9 +22,8 @@ Relocate:
     mov si, 0x7C00
     mov cx, 512
     rep movsb                           ; copy all code to 0x0600
-    jmp 0x0000:0x600 + stage1_offset    ; jump to Stage1 in relocated code
+    jmp 0x0000:Stage1                   ; jump to Stage1 in relocated code
 
-stage1_offset equ $ - $$
 Stage1:
     mov si, stage1
     call PrintString
