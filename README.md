@@ -7,11 +7,11 @@ The BIOS bootloader comes in two variants:
 - Master Boot Record (MBR)
 - GUID Partition Table (GPT)
 
-The bootloader will use a two stage model.
-Both variants will have a common MBR based boot code but the GPT variant won't use the MBR-contained Partition Table.
+Both variants use a two stage model and have a common MBR based boot code where the GPT variant won't use the contained Partition Table. This first stage will load the common second stage which in turn prepares everything for the kernel and loads it.
 
 
 ##### MBR
+
 ##### GPT
 protective MBR
 #### UEFI
@@ -67,8 +67,10 @@ Testing:
 - bximage to create new hd image
 - sudo losetup -f
 - sudo losetup /dev/loopxx c.img
-- dd if=path/to/mbr of=/dev/loopxx bs=512
+- sudo dd if=path/to/mbr of=/dev/loopxx bs=512
 - sudo fdisk --protect-boot --cylinders 20 --heads 16 --sectors 63 -u /dev/loopxx
 - n to create one partition
 - w to write to file
 - dd if=/path/to/bootloader of=/dev/loopxx bs=4096 skip=512 count=1MB-512 iflag=skip_bytes,count_bytes
+
+;guid db "pow's bootloader", 0
