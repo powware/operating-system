@@ -69,22 +69,20 @@ LoadStage2GPT:
 .read_gpt_header:
     mov si, disk_address_packet
     mov ah, 0x42                                        ; int 0x13 ah=0x42: Extended Read Sectors From Drive
-    jc BootError
     int 0x13
+    jc BootError
 
     mov cx, [gpt_header_partion_entries_count]
     mov ax, [gpt_header_partion_entries]
-    mov [disk_address_packet.first_lba], ax
+    mov [disk_address_packet.source], ax
 .read_gpt_entry:
     mov ah, 0x42                                        ; int 0x13 ah=0x42: Extended Read Sectors From Drive
-    jc BootError
     int 0x13
+    jc BootError
 
-    call PrintByteAsHex
-    call PrintNewline
-    pop bx
-    call PrintByteAsHex
-    call PrintNewline
+    call PrintGUID
+
+    inc word [disk_address_packet.source]
     loop .read_gpt_entry
 
 Stage2:
@@ -166,6 +164,9 @@ PrintNewline:
     int 0x10
     ret
 
+PrintGUID:
+    ret
+
 stage1 db "1", 0
 success db " s", 0
 error db " e", 0
@@ -181,7 +182,7 @@ disk_address_packet             db 0x1             ; 0x00: 1 byte:	    size of D
                                 dw 0x1             ; 0x02: 2 bytes:	    number of sectors to be read (GPT header is contained in a single sector)
                                 dw gpt_header      ; 0x04: 2 bytes:     offset
                                 dw 0               ; 0x06: 2 bytes:     segment
-.first_lba                      dw 0x1             ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes total but we only need to write the lowest two byte
+.source                         dw 0x1             ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes total but we only need to write the lowest two byte
                                 dw 0               ; 0x0A: 2 bytes:
                                 dd 0               ; 0x0C: 4 bytes:
 
