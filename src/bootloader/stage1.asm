@@ -1,15 +1,14 @@
 [bits 16]                   ; DH and ES:DI should be preserved by the MBR for full Plug-and-Play support
 [org 0x600]                 ; we use the relocated origin and only use labels after relocation
 
-
-    jmp 0x0000:0x7C00 + setup      ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
-setup equ $ - $$
+    jmp 0x0000:boot_address + start      ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
+start equ $ - $$
 
     xor ax, ax
     mov ds, ax              ; clear ds
     mov es, ax              ; clear es
 
-    mov bp, 0x9000          ; set stack and base pointer to 0x9000
+    mov bp, 0x7FFF          ; set stack and base pointer to 0x7FFF
     mov sp, bp
 
     mov ax, 0x3             ; set video mode Text (80 x 25)
@@ -19,73 +18,80 @@ setup equ $ - $$
 
 Relocate:
     mov di, 0x600
-    mov si, 0x7C00
+    mov si, boot_address
     mov cx, 512
     rep movsb                           ; copy all code to 0x0600
-    jmp 0x0000:Stage1                   ; jump to Stage1 in relocated code
-
-Stage1:
-    mov si, stage1
-    call PrintString
-    call PrintNewline
-
-PrintBootDisk:
-    mov si, boot_disk
-    call PrintString
-    mov bl, dl
-    call PrintByteAsHex
-    call PrintNewline
+    jmp ResetDiskSystem                 ; jump to relocated code
 
 ResetDiskSystem:
-    mov si, resetting_disk_system
-    call PrintString
-
     xor ah, ah
     int 0x13
     jc ResetDiskSystemError
 
-    mov si, success
-    call PrintString
-    call PrintNewline
+LoadStage2:
+    mov al, [partion_entry0.type]
+    cmp al, 0xEE
+    je LoadStage2GPT
 
-CheckExtensionPresent:
-    mov si, checking_extension_present
-    call PrintString
+LoadStage2MBR:
+    mov ah, 0x2
+    mov al, 1
+    mov ch, 0                                           ; cylinder
+    mov cl, 2                                           ; sector
+    mov dh, 0                                           ; head
+    mov bx, boot_address
+    int 0x13
+    jc LoadStage2Error
+    cmp al, 1
+    jne LoadStage2Error
+    jmp Stage2
 
+LoadStage2GPT:
+.checking_extension_present:
     mov bx, 0x55AA
     mov ah, 0x41
-    int 0x13
-
+    int 0x13                                            ; int 0x13 ah=0x41: Check Extensions Present
     jc EDDError
     cmp bx, [boot_signature]
     jne EDDError
     and cx, 0x04
     jz EDDError
 
-    mov si, supported
-    call PrintString
-    call PrintNewline
+; .extended_read_drive_parameters:
+;     mov ax, result_buffer_size
+;     mov [result_buffer], ax                             ; 0x00: 2 bytes: size of Result Buffer (set this to 0x1E)
+;     mov ah, 0x48                                        ; int 0x13 ax=0x48: Extended Read Drive Parameters
+;     mov si, result_buffer                               ; pointer to Result Buffer
+;     jc BootError
 
-LoadStage2:
-    mov si, loading_stage2
-    call PrintString
+;     mov ax, [result_buffer_bytes_per_sector]           ; 0x18: 2 bytes: bytes per sector
 
-    mov ah, 0x2
-    mov al, 1
-    mov ch, 0           ; cylinder
-    mov cl, 2           ; sector
-    mov dh, 0           ; head
-    mov bx, 0x7C00
+.read_gpt_header:
+    mov si, disk_address_packet
+    mov ah, 0x42                                        ; int 0x13 ah=0x42: Extended Read Sectors From Drive
+    jc BootError
     int 0x13
-    jc LoadStage2Error
-    cmp al, 1
-    jne LoadStage2Error
 
-    mov si, success
-    call PrintString
+    mov cx, [gpt_header_partion_entries_count]
+    mov ax, [gpt_header_partion_entries]
+    mov [disk_address_packet.first_lba], ax
+.read_gpt_entry:
+    mov ah, 0x42                                        ; int 0x13 ah=0x42: Extended Read Sectors From Drive
+    jc BootError
+    int 0x13
+
+    call PrintByteAsHex
     call PrintNewline
+    pop bx
+    call PrintByteAsHex
+    call PrintNewline
+    loop .read_gpt_entry
 
-    jmp 0x0000:0x7C00   ; jump to Stage 2
+Stage2:
+    cli
+    hlt
+
+    jmp 0x0000:boot_address                           ; jump to Stage 2
 
 ResetDiskSystemError:
     mov si, error
@@ -160,21 +166,73 @@ PrintNewline:
     int 0x10
     ret
 
-stage1 db "Stage 1", 0
-success db " success", 0
-error db " error", 0
-boot_disk db "Boot Disk: 0x", 0
-resetting_disk_system db "Resetting Disk System...", 0
-checking_extension_present db "Checking Enhanced Disk Drive...", 0
-supported db " supported", 0
-not_supported db " not supported", 0
-loading_stage2 db "Loading Stage 2...", 0
-press_to_proceed db "Press any key to proceed..."
+stage1 db "1", 0
+success db " s", 0
+error db " e", 0
+boot_disk db "Disk: 0x", 0
+resetting_disk_system db "RDS", 0
+supported db " s", 0
+not_supported db " ns", 0
+loading_stage2 db "2.", 0
 boot_error db "Boot error.", 0
 
-times 446 - ($ - $$) db 0
-partion_entry0 times 16 db 0
-partion_entry1 times 16 db 0
-partion_entry2 times 16 db 0
-partion_entry3 times 16 db 0
-boot_signature dw 0xAA55
+disk_address_packet             db 0x1             ; 0x00: 1 byte:	    size of DAP (set this to 0x10)
+                                db 0               ; 0x01: 1 byte:	    unused, should be zero
+                                dw 0x1             ; 0x02: 2 bytes:	    number of sectors to be read (GPT header is contained in a single sector)
+                                dw gpt_header      ; 0x04: 2 bytes:     offset
+                                dw 0               ; 0x06: 2 bytes:     segment
+.first_lba                      dw 0x1             ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes total but we only need to write the lowest two byte
+                                dw 0               ; 0x0A: 2 bytes:
+                                dd 0               ; 0x0C: 4 bytes:
+
+padding    times 446 - ($ - $$) db 0
+
+partion_entry0                  db 0
+.first_sector           times 3 db 0
+.type                           db 0
+.last_sector            times 3 db 0
+.first_sector_lba               dd 0
+.sector_count                   dd 0
+
+partion_entry1                  db 0
+.first_sector           times 3 db 0
+.type                           db 0
+.last_sector            times 3 db 0
+.first_sector_lba               dd 0
+.sector_count                   dd 0
+
+partion_entry2                  db 0
+.first_sector           times 3 db 0
+.type                           db 0
+.last_sector            times 3 db 0
+.first_sector_lba               dd 0
+.sector_count                   dd 0
+
+partion_entry3                  db 0
+.first_sector           times 3 db 0
+.type                           db 0
+.last_sector            times 3 db 0
+.first_sector_lba               dd 0
+.sector_count                   dd 0
+
+boot_signature                  dw 0xAA55
+
+; Macros
+
+boot_address equ 0x7C00
+
+; RAM Macros
+
+ram equ 0x600 + 512
+
+result_buffer_size equ 0x1E
+result_buffer equ ram
+result_buffer_bytes_per_sector equ result_buffer + 0x18             ; 2 bytes
+
+gpt_header_size equ 0x5C                                            ; 8 bytes
+gpt_header equ result_buffer + result_buffer_size                   ; 8 bytes
+gpt_header_header_size equ gpt_header + 0xC                         ; 8 bytes
+gpt_header_partion_entries equ gpt_header + 0x48                    ; 8 bytes
+gpt_header_partion_entries_count equ gpt_header + 0x50              ; 4 bytes
+
+gpt_entry equ gpt_header
