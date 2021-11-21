@@ -73,4 +73,4 @@ Testing:
 - w to write to file
 - dd if=/path/to/bootloader of=/dev/loopxx bs=4096 skip=512 count=1MB-512 iflag=skip_bytes,count_bytes
 
-;guid db "pow's bootloader", 0
+partition_type db "pow's bootloader" ; 27776F70-2073-6F62-6f74-6C6F61646572

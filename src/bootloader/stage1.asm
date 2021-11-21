@@ -17,11 +17,12 @@ start equ $ - $$
     cld                     ; clear direction flag for string operations
 
 Relocate:
-    mov di, 0x600
+    mov di, relocation_address
     mov si, boot_address
     mov cx, 512
-    rep movsb                           ; copy all code to 0x0600
-    jmp ResetDiskSystem                 ; jump to relocated code
+    rep movsb                                       ; copy all code to 0x0600
+    jmp 0x0000:relocation_address + next             ; jump to relocated code
+next equ $ - $$
 
 ResetDiskSystem:
     xor ah, ah
@@ -75,21 +76,37 @@ LoadStage2GPT:
     mov cx, [gpt_header_partion_entries_count]
     mov ax, [gpt_header_partion_entries]
     mov [disk_address_packet.source], ax
+
 .read_gpt_entry:
     mov ah, 0x42                                        ; int 0x13 ah=0x42: Extended Read Sectors From Drive
     int 0x13
     jc BootError
 
-    call PrintGUID
+    call CheckPartitionType
+    je ReadStage2
 
     inc word [disk_address_packet.source]
     loop .read_gpt_entry
 
-Stage2:
-    cli
-    hlt
+    jmp BootError
 
-    jmp 0x0000:boot_address                           ; jump to Stage 2
+ReadStage2:
+    mov di, disk_address_packet.source
+    mov si, gpt_entry_first_lba
+    mov cx, 8
+    rep movsb                                           ; copy address of first LBA into source for read
+
+    mov word [disk_address_packet.segment], 0x7C0
+    mov word [disk_address_packet.offset], 0
+    mov si, disk_address_packet
+    mov ah, 0x42
+    int 0x13                                            ; copy first LBA into boot address 0x07C0:0000 => 0x7C00
+    jc BootError
+
+
+
+Stage2:
+    jmp 0x0000:boot_address                             ; jump to Stage 2
 
 ResetDiskSystemError:
     mov si, error
@@ -117,9 +134,26 @@ BootError:
     cli
     hlt
 
+CheckPartitionType:
+    push si
+    push di
+    push cx
+
+    mov si, gpt_entry_partition_type
+    mov di, partition_type
+
+    mov cx, 16
+    rep cmpsb
+
+    pop cx
+    pop di
+    pop si
+    ret
+
 ; si: null-terminated string
-; clears: ax, bh
 PrintString:
+    push ax
+    push bx
     xor bh, bh
     mov ah, 0x0E
 
@@ -130,11 +164,14 @@ PrintString:
     int 0x10
     jmp .print_char
 .return:
+    pop bx
+    pop ax
     ret
 
 ; bl: byte to print
-; clears: ax, bh
 PrintByteAsHex:
+    push ax
+    push bx
     xor bh, bh
     mov ah, 0x0E
 
@@ -153,19 +190,39 @@ PrintByteAsHex:
     mov al, bl
     and al, 0xF
     loop .print_digit
+    pop bx
+    pop ax
     ret
 
-; clears: ax, bh
 PrintNewline:
+    push ax
+    push bx
     xor bh, bh
     mov ax, 0x0E0A      ; mov al, 0x0A
     int 0x10
     mov al, 0x0D
     int 0x10
+    pop bx
+    pop ax
     ret
 
-PrintGUID:
-    ret
+;PrintGUID:
+;    push ax
+;    push bx
+;    push si
+;    mov si, gpt_header
+;    mov cx, 16
+;.loop:
+;    push cx
+;    lodsb
+;    mov bl, al
+;    call PrintByteAsHex
+;    pop cx
+;    loop .loop
+;    pop si
+;    pop bx
+;    pop ax
+;    ret
 
 stage1 db "1", 0
 success db " s", 0
@@ -177,14 +234,16 @@ not_supported db " ns", 0
 loading_stage2 db "2.", 0
 boot_error db "Boot error.", 0
 
-disk_address_packet             db 0x1             ; 0x00: 1 byte:	    size of DAP (set this to 0x10)
-                                db 0               ; 0x01: 1 byte:	    unused, should be zero
-                                dw 0x1             ; 0x02: 2 bytes:	    number of sectors to be read (GPT header is contained in a single sector)
-                                dw gpt_header      ; 0x04: 2 bytes:     offset
-                                dw 0               ; 0x06: 2 bytes:     segment
-.source                         dw 0x1             ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes total but we only need to write the lowest two byte
-                                dw 0               ; 0x0A: 2 bytes:
-                                dd 0               ; 0x0C: 4 bytes:
+disk_address_packet             db 0x1                  ; 0x00: 1 byte:	    size of DAP (set this to 0x10)
+                                db 0                    ; 0x01: 1 byte:	    unused, should be zero
+                                dw 0x1                  ; 0x02: 2 bytes:	    number of sectors to be read (GPT header is contained in a single sector)
+.offset                         dw gpt_header           ; 0x04: 2 bytes:     offset
+.segment                        dw 0                    ; 0x06: 2 bytes:     segment
+.source                         dw 0x1                  ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes, initialized with LBA1 for GPT Header
+                                dw 0                    ; 0x0A: 2 bytes:
+                                dd 0                    ; 0x0C: 4 bytes:
+
+partition_type             db "pow's bootloader"   ; 27776F70-2073-6F62-6f74-6C6F61646572
 
 padding    times 446 - ($ - $$) db 0
 
@@ -220,11 +279,12 @@ boot_signature                  dw 0xAA55
 
 ; Macros
 
+relocation_address equ 0x600
 boot_address equ 0x7C00
 
 ; RAM Macros
 
-ram equ 0x600 + 512
+ram equ relocation_address + 512
 
 result_buffer_size equ 0x1E
 result_buffer equ ram
@@ -232,8 +292,10 @@ result_buffer_bytes_per_sector equ result_buffer + 0x18             ; 2 bytes
 
 gpt_header_size equ 0x5C                                            ; 8 bytes
 gpt_header equ result_buffer + result_buffer_size                   ; 8 bytes
-gpt_header_header_size equ gpt_header + 0xC                         ; 8 bytes
 gpt_header_partion_entries equ gpt_header + 0x48                    ; 8 bytes
 gpt_header_partion_entries_count equ gpt_header + 0x50              ; 4 bytes
 
 gpt_entry equ gpt_header
+gpt_entry_partition_type equ gpt_entry
+gpt_entry_first_lba equ gpt_header + 0x20
+gpt_entry_last_lba equ gpt_header + 0x28

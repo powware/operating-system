@@ -14,7 +14,7 @@ stage2:
 install:
 	sudo dd if=$(build)/stage1 of=/dev/loop$(loop) bs=446 count=446 iflag=count_bytes
 	#sudo dd if=$(build)/stage2 of=/dev/loop$(loop) bs=512 seek=512 oflag=seek_bytes 	#mbr
-	#sudo dd if=$(build)/stage2 of=/dev/loop28 bs=512 									#gpt
+	sudo dd if=$(build)/stage2 of=/dev/loop28 bs=512 									#gpt
 
 inspect:
 	sudo xxd -len 1024 /dev/loop$(loop)

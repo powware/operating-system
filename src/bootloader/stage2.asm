@@ -1,7 +1,7 @@
 [bits 16]
-[org 0x7c00]
+[org 0x7C00]
 
-jmp 0x0000:Setup            ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
+    jmp 0x0000:Setup            ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
 
 Setup:
     xor ax, ax
@@ -17,9 +17,9 @@ Setup:
     cld                     ; clear direction flag for string operations
 
 Stage2:
-mov si, stage2
-call PrintString
-call PrintNewline
+    mov si, stage2
+    call PrintString
+    call PrintNewline
 HALT:
     cli
     hlt
