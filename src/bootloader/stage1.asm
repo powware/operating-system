@@ -96,6 +96,17 @@ ReadStage2:
     mov cx, 8
     rep movsb                                           ; copy address of first LBA into source for read
 
+    mov bx, [gpt_entry_first_lba]
+    mov ax, [gpt_entry_last_lba]
+    sub ax, bx
+    inc ax                                              ; calculate number of sectors to read
+
+    mov bl, ah
+    call PrintByteAsHex
+    mov bl, al
+    call PrintByteAsHex
+
+    mov word [disk_address_packet.number_of_sectors], 127 ; should be ax, but 128 is max number
     mov word [disk_address_packet.segment], 0x7C0
     mov word [disk_address_packet.offset], 0
     mov si, disk_address_packet
@@ -236,10 +247,10 @@ boot_error db "Boot error.", 0
 
 disk_address_packet             db 0x1                  ; 0x00: 1 byte:	    size of DAP (set this to 0x10)
                                 db 0                    ; 0x01: 1 byte:	    unused, should be zero
-                                dw 0x1                  ; 0x02: 2 bytes:	    number of sectors to be read (GPT header is contained in a single sector)
-.offset                         dw gpt_header           ; 0x04: 2 bytes:     offset
-.segment                        dw 0                    ; 0x06: 2 bytes:     segment
-.source                         dw 0x1                  ; 0x08: 2 bytes:     absolute number of the start of the sectors to be read 8 bytes, initialized with LBA1 for GPT Header
+.number_of_sectors              dw 0x1                  ; 0x02: 2 bytes:	number of sectors to be read (GPT header is contained in a single sector)
+.offset                         dw gpt_header           ; 0x04: 2 bytes:    offset
+.segment                        dw 0                    ; 0x06: 2 bytes:    segment
+.source                         dw 0x1                  ; 0x08: 2 bytes:    absolute number of the start of the sectors to be read 8 bytes, initialized with LBA1 for GPT Header
                                 dw 0                    ; 0x0A: 2 bytes:
                                 dd 0                    ; 0x0C: 4 bytes:
 
