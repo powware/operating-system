@@ -1,9 +1,9 @@
 [bits 16]
 [org 0x7C00]
 
-    jmp 0x0000:Setup            ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
+    jmp 0x0000:Start        ; clear cs by far jumping to the next instruction, we can't use labels here since we haven't been relocated yet
 
-Setup:
+Start:
     xor ax, ax
     mov ds, ax              ; clear ds
     mov es, ax              ; clear es
@@ -20,9 +20,43 @@ Stage2:
     mov si, stage2
     call PrintString
     call PrintNewline
+
+EnableA20Line:
+    call CheckA20Line       ; use different testing environment where A20 line is disabled
+    jmp .enabled
+.enabled:
+
+
+
 HALT:
     cli
     hlt
+
+CheckA20Line:
+    push ds
+    mov si, checking_a20_line
+    call PrintString
+
+    mov ax, 0xFFFF
+    mov ds, ax
+    mov si, 0x7C10
+    mov di, 0x7C00
+    mov al, [ds:si]
+    inc al
+    mov [es:di], al
+    cmp [ds:si], al
+    pop ds
+    je .check_false
+.check_true:
+    mov si, enabled
+    jmp .return
+.check_false:
+    mov si, disabled
+.return:
+    call PrintString
+    call PrintNewline
+
+    ret
 
 ; si: null-terminated string
 ; clears: ax, bh
@@ -48,6 +82,7 @@ PrintNewline:
     int 0x10
     ret
 
+checking_a20_line db "checking A20 line... ", 0
+enabled db "enabled", 0
+disabled db "disabled", 0
 stage2 db "Stage 2", 0
-
-times 512 - ($ - $$) db 0

@@ -8,7 +8,7 @@ start equ $ - $$
     mov ds, ax              ; clear ds
     mov es, ax              ; clear es
 
-    mov bp, 0x7FFF          ; set stack and base pointer to 0x7FFF
+    mov bp, 0x9000          ; set stack and base pointer
     mov sp, bp
 
     mov ax, 0x3             ; set video mode Text (80 x 25)
@@ -21,7 +21,7 @@ Relocate:
     mov si, boot_address
     mov cx, 512
     rep movsb                                       ; copy all code to 0x0600
-    jmp 0x0000:relocation_address + next             ; jump to relocated code
+    jmp 0x0000:relocation_address + next            ; jump to relocated code
 next equ $ - $$
 
 ResetDiskSystem:
@@ -31,7 +31,7 @@ ResetDiskSystem:
 
 LoadStage2:
     mov al, [partion_entry0.type]
-    cmp al, 0xEE
+    cmp al, protective_mbr                                       ; check if MBR is only protective
     je LoadStage2GPT
 
 LoadStage2MBR:
@@ -48,7 +48,7 @@ LoadStage2MBR:
     jmp Stage2
 
 LoadStage2GPT:
-.checking_extension_present:
+.check_extension_present:
     mov bx, 0x55AA
     mov ah, 0x41
     int 0x13                                            ; int 0x13 ah=0x41: Check Extensions Present
@@ -250,11 +250,9 @@ disk_address_packet             db 0x1                  ; 0x00: 1 byte:	    size
 .number_of_sectors              dw 0x1                  ; 0x02: 2 bytes:	number of sectors to be read (GPT header is contained in a single sector)
 .offset                         dw gpt_header           ; 0x04: 2 bytes:    offset
 .segment                        dw 0                    ; 0x06: 2 bytes:    segment
-.source                         dw 0x1                  ; 0x08: 2 bytes:    absolute number of the start of the sectors to be read 8 bytes, initialized with LBA1 for GPT Header
-                                dw 0                    ; 0x0A: 2 bytes:
-                                dd 0                    ; 0x0C: 4 bytes:
+.source                         dq 0x1                  ; 0x08: 8 bytes:    absolute number of the start of the sectors to be read 8 bytes, initialized with LBA1 for GPT Header
 
-partition_type             db "pow's bootloader"   ; 27776F70-2073-6F62-6f74-6C6F61646572
+partition_type                  db "pow's bootloader"   ; 27776F70-2073-6F62-6f74-6C6F61646572
 
 padding    times 446 - ($ - $$) db 0
 
@@ -292,6 +290,7 @@ boot_signature                  dw 0xAA55
 
 relocation_address equ 0x600
 boot_address equ 0x7C00
+protective_mbr equ 0xEE
 
 ; RAM Macros
 
