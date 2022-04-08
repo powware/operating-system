@@ -74,6 +74,7 @@ not yet planned
 - https://wiki.osdev.org/UEFI_App_Bare_Bones
 - https://www.amd.com/system/files/TechDocs/24592.pdf
 - https://www.amd.com/system/files/TechDocs/24593.pdf
+- https://www.coreboot.org/images/6/6c/LBCar.pdf
 
 DataSheets:
 - https://stanislavs.org/helppc/idx_interrupt.html
