@@ -1,4 +1,4 @@
-src=src/bootloader
+src=src/bootloader/legacy
 build=build
 flags=-f bin
 loop=2
